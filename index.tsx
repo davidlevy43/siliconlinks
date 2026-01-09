@@ -1,1 +1,1 @@
-// Consolidating to index.html to prevent GitHub Pages MIME issues.
+// Logic moved to index.html for maximum compatibility on static hosts.
