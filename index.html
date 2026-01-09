@@ -1,66 +1,321 @@
 
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SILICON VIBE // BIO-SIGNAL</title>
     
-    <!-- Utilities & Styles -->
+    <!-- Design & Utilities -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;300;400;700;900&display=swap" rel="stylesheet">
     
-    <!-- Babel for on-the-fly TSX compilation -->
+    <!-- React & ReactDOM (UMD) -->
+    <script src="https://unpkg.com/react@19/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@19/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel for Browser-side JSX/TS transformation -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <style>
-      body {
-        font-family: 'Inter', sans-serif;
-        background-color: #020617;
-        margin: 0;
-        overflow-x: hidden;
-      }
-      .neural-gradient {
-        background: radial-gradient(circle at top left, rgba(6, 182, 212, 0.15) 0%, transparent 50%),
-                    radial-gradient(circle at bottom right, rgba(79, 70, 229, 0.15) 0%, transparent 50%);
-      }
-      @keyframes pulse-ring {
-        0% { transform: scale(0.8); opacity: 0.5; }
-        50% { transform: scale(1.1); opacity: 0.8; }
-        100% { transform: scale(0.8); opacity: 0.5; }
-      }
-      .neon-pulse {
-        animation: pulse-ring 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-      }
-      ::-webkit-scrollbar {
-        width: 4px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #020617;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #06b6d4;
-        border-radius: 10px;
-      }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #020617; 
+            margin: 0; 
+            overflow-x: hidden; 
+            color: #e2e8f0; 
+        }
+        .neural-gradient {
+            background: radial-gradient(circle at top left, rgba(6, 182, 212, 0.15) 0%, transparent 50%),
+                        radial-gradient(circle at bottom right, rgba(79, 70, 229, 0.15) 0%, transparent 50%);
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+            100% { transform: scale(0.8); opacity: 0.5; }
+        }
+        .neon-pulse { 
+            animation: pulse-ring 3s cubic-bezier(0.4, 0, 0.6, 1) infinite; 
+        }
+        .glass { 
+            background: rgba(255, 255, 255, 0.03); 
+            backdrop-filter: blur(12px); 
+            border: 1px solid rgba(255, 255, 255, 0.08); 
+        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #020617; }
+        ::-webkit-scrollbar-thumb { background: #06b6d4; border-radius: 10px; }
+        
+        .scanline {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
+            background-size: 100% 4px, 3px 100%;
+            pointer-events: none;
+            z-index: 50;
+            opacity: 0.3;
+        }
     </style>
-
-    <script type="importmap">
+<script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@19.0.0",
-    "react-dom": "https://esm.sh/react-dom@19.0.0",
-    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
     "react/": "https://esm.sh/react@^19.2.3/"
   }
 }
 </script>
-  </head>
-  <body>
+</head>
+<body>
     <div id="root"></div>
-    <!-- Note: text/babel type is required for Babel standalone to process this as TSX -->
-    <script type="text/babel" data-type="module" src="index.tsx"></script>
-  </body>
+    <div class="scanline"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        // --- Data Transmission Logic ---
+        function parseCSV(csvText) {
+            const rows = [];
+            let currentRow = [];
+            let currentField = '';
+            let inQuotes = false;
+            for (let i = 0; i < csvText.length; i++) {
+                const char = csvText[i];
+                const nextChar = csvText[i + 1];
+                if (inQuotes) {
+                    if (char === '"' && nextChar === '"') { currentField += '"'; i++; }
+                    else if (char === '"') inQuotes = false;
+                    else currentField += char;
+                } else {
+                    if (char === '"') inQuotes = true;
+                    else if (char === ',') { currentRow.push(currentField); currentField = ''; }
+                    else if (char === '\r' || char === '\n') {
+                        currentRow.push(currentField);
+                        if (currentRow.some(f => f.trim() !== '')) rows.push(currentRow);
+                        currentRow = []; currentField = '';
+                        if (char === '\r' && nextChar === '\n') i++;
+                    } else currentField += char;
+                }
+            }
+            if (currentRow.length > 0 || currentField !== '') { currentRow.push(currentField); rows.push(currentRow); }
+            return rows;
+        }
+
+        async function fetchSignals(sheetId) {
+            const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('UPLINK_FAILURE');
+            const csvText = await response.text();
+            const rows = parseCSV(csvText);
+            
+            if (rows.length < 2) return [];
+
+            return rows.slice(1).map((row, index) => ({
+                id: String(index + 1).padStart(2, '0'),
+                title: row[1]?.trim() || 'UNDEFINED_SIGNAL',
+                timestamp: row[0]?.trim() || new Date().toLocaleDateString(),
+                category: row[2]?.toUpperCase() || 'EXTERNAL',
+                link: (row[3]?.trim() || '#').startsWith('http') ? row[3].trim() : `https://${row[3].trim()}`
+            })).filter(s => s.title !== 'UNDEFINED_SIGNAL');
+        }
+
+        // --- UI Components ---
+        const Header = () => (
+            <header className="flex flex-col items-center py-12 px-6">
+                <div className="relative mb-8">
+                    <div className="absolute inset-0 rounded-full border border-cyan-500/30 blur-xl neon-pulse" />
+                    <div className="w-20 h-20 rounded-full border-2 border-cyan-500 flex items-center justify-center relative z-10 bg-[#020617]">
+                        <span className="text-2xl font-black text-white tracking-tighter">SV</span>
+                    </div>
+                </div>
+                
+                <h1 className="text-5xl md:text-7xl font-black text-white tracking-tighter text-center uppercase mb-3">
+                    SILICON <span className="text-cyan-500 italic">VIBE</span>
+                </h1>
+                
+                <div className="flex items-center space-x-3 text-[10px] font-bold text-cyan-500/70 uppercase tracking-[0.5em] bg-cyan-500/5 px-4 py-2 rounded-full border border-cyan-500/20">
+                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                    <span>Neural Uplink Active</span>
+                </div>
+            </header>
+        );
+
+        const SignalCard = ({ signal }) => (
+            <a 
+                href={signal.link} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="group block relative p-6 rounded-xl glass transition-all duration-300 hover:border-cyan-500/50 hover:bg-white/[0.06] hover:shadow-[0_0_30px_rgba(6,182,212,0.1)] overflow-hidden"
+            >
+                <div className="absolute top-0 left-0 w-1 h-0 group-hover:h-full bg-cyan-500 transition-all duration-500" />
+                
+                <div className="flex justify-between items-start mb-4">
+                    <div className="flex flex-col">
+                        <span className="text-[9px] font-bold tracking-[0.3em] text-cyan-500/60 uppercase">ID // {signal.id}</span>
+                        <span className="text-[10px] font-mono text-white/30 uppercase mt-1">{signal.timestamp}</span>
+                    </div>
+                    <div className="px-2 py-0.5 rounded border border-cyan-500/30 text-[9px] font-bold text-cyan-400 uppercase tracking-widest">ONLINE</div>
+                </div>
+
+                <h3 className="text-xl md:text-2xl font-black text-white mb-3 tracking-tight group-hover:text-cyan-400 uppercase leading-tight transition-colors">
+                    {signal.title}
+                </h3>
+                
+                <div className="flex justify-between items-center pt-4 border-t border-white/5 mt-4">
+                    <div className="flex flex-col">
+                        <span className="text-[10px] text-white/30 uppercase tracking-[0.2em] mb-1">Source Node</span>
+                        <span className="text-xs font-bold text-white/80 font-mono tracking-wider">{signal.category}</span>
+                    </div>
+                    
+                    <div className="w-10 h-10 rounded-lg border border-white/10 flex items-center justify-center group-hover:border-cyan-500/50 group-hover:bg-cyan-500/10 transition-all text-cyan-500/50 group-hover:text-cyan-400">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M7 17l10-10M17 17V7H7" />
+                        </svg>
+                    </div>
+                </div>
+            </a>
+        );
+
+        const BootSequence = ({ onComplete }) => {
+            const [step, setStep] = useState(0);
+            const steps = useMemo(() => [
+                "INITIALIZING NEURAL CORE...",
+                "HANDSHAKE PROTOCOL: 0x8F2A...",
+                "DECRYPTING BIO-STREAMS...",
+                "SYNCING WITH SILICON VIBE...",
+                "CONNECTION SECURE."
+            ], []);
+
+            useEffect(() => {
+                const interval = setInterval(() => {
+                    setStep(prev => {
+                        if (prev >= steps.length - 1) {
+                            clearInterval(interval);
+                            setTimeout(onComplete, 600);
+                            return prev;
+                        }
+                        return prev + 1;
+                    });
+                }, 350);
+                return () => clearInterval(interval);
+            }, [onComplete, steps]);
+
+            return (
+                <div className="fixed inset-0 z-[100] bg-[#020617] flex flex-col items-center justify-center p-6 text-cyan-500 font-mono">
+                    <div className="w-full max-w-xs text-center">
+                        <div className="mb-10 flex justify-center">
+                            <div className="w-16 h-16 rounded-full border-2 border-cyan-500 flex items-center justify-center neon-pulse">
+                                <span className="text-xl font-black tracking-tighter">SV</span>
+                            </div>
+                        </div>
+                        <div className="space-y-3 h-32 text-left">
+                            {steps.slice(0, step + 1).map((text, idx) => (
+                                <div key={idx} className="text-[11px] uppercase tracking-wider">
+                                    <span className="mr-2 text-cyan-500/40">[{idx === step ? '>>' : 'OK'}]</span>
+                                    <span className={idx === step ? 'text-white' : 'text-cyan-500/80'}>{text}</span>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="mt-8 w-full bg-cyan-900/20 h-0.5 rounded-full overflow-hidden">
+                            <div 
+                                className="h-full bg-cyan-500 transition-all duration-300"
+                                style={{ width: `${((step + 1) / steps.length) * 100}%` }}
+                            />
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [isBooting, setIsBooting] = useState(true);
+            const [signals, setSignals] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+
+            const loadData = async () => {
+                setLoading(true);
+                setError(null);
+                try {
+                    const sheetId = '1VU1qo4BZ4cFNbjsHHWqAcO7A5zZx1BiYwDYkbsiId_8';
+                    const data = await fetchSignals(sheetId);
+                    setSignals(data);
+                } catch (err) {
+                    console.error(err);
+                    setError('CONNECTION_FAILURE: NEURAL_UPLINK_TIMEOUT');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            useEffect(() => {
+                loadData();
+            }, []);
+
+            if (isBooting) {
+                return <BootSequence onComplete={() => setIsBooting(false)} />;
+            }
+
+            return (
+                <div className="min-h-screen relative flex flex-col items-center pb-40">
+                    <div className="fixed inset-0 pointer-events-none neural-gradient opacity-60" />
+                    
+                    <main className="w-full max-w-2xl px-6 relative z-10">
+                        <Header />
+
+                        <div className="mt-8 space-y-4">
+                            <div className="flex justify-between items-center px-2 mb-6 text-[10px] font-bold uppercase tracking-[0.2em] text-white/30 font-mono">
+                                <span>Live Signal Feed</span>
+                                <div className="flex items-center space-x-2">
+                                    <span className={`w-1.5 h-1.5 rounded-full ${error ? 'bg-red-500 animate-pulse' : 'bg-cyan-500'}`}></span>
+                                    <span className={error ? 'text-red-400' : 'text-cyan-400'}>{error ? 'OFFLINE' : 'STABLE'}</span>
+                                </div>
+                            </div>
+
+                            {error && (
+                                <div className="p-8 rounded-xl border border-red-500/30 bg-red-500/5 text-center">
+                                    <p className="text-red-400 font-mono text-[11px] uppercase tracking-widest mb-6">{error}</p>
+                                    <button onClick={loadData} className="text-[10px] font-black text-white uppercase bg-red-500/20 px-6 py-3 rounded-lg border border-red-500/30 hover:bg-red-500/30 transition-all">Retry Synchronization</button>
+                                </div>
+                            )}
+
+                            {loading && !error ? (
+                                <div className="space-y-4">
+                                    {[1, 2, 3].map(i => <div key={i} className="h-32 rounded-xl glass animate-pulse" />)}
+                                </div>
+                            ) : (
+                                signals.map(signal => <SignalCard key={signal.id} signal={signal} />)
+                            )}
+
+                            {!loading && !error && signals.length === 0 && (
+                                <div className="text-center py-20 border border-dashed border-white/10 rounded-xl">
+                                    <p className="text-white/20 font-mono text-[10px] uppercase tracking-[0.3em]">No incoming signals detected.</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <footer className="mt-24 pb-12 opacity-30 text-center border-t border-white/5 pt-12">
+                            <p className="text-[9px] font-mono uppercase tracking-[0.4em]">© 2024 SILICON VIBE PROTOCOL // BIO-SIGNAL INTERFACE</p>
+                        </footer>
+                    </main>
+
+                    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 w-full max-w-md px-6">
+                        <button 
+                            onClick={loadData}
+                            disabled={loading}
+                            className="w-full bg-cyan-500 hover:bg-cyan-400 text-[#020617] font-black uppercase py-5 rounded-xl shadow-[0_10px_40px_rgba(6,182,212,0.3)] transition-all active:scale-95 disabled:opacity-50"
+                        >
+                            {loading ? 'Syncing...' : 'Refresh Uplink'}
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
 </html>
