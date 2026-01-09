@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import Header from './components/Header';
-import SignalCard from './components/SignalCard';
-import BootSequence from './components/BootSequence';
-import { fetchSignals } from './services/dataService';
-import { Signal, AppState } from './types';
+import Header from './components/Header.tsx';
+import SignalCard from './components/SignalCard.tsx';
+import BootSequence from './components/BootSequence.tsx';
+import { fetchSignals } from './services/dataService.ts';
+import { Signal, AppState } from './types.ts';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
@@ -17,7 +17,6 @@ const App: React.FC = () => {
   const loadData = async () => {
     setState(prev => ({ ...prev, loading: true, error: null }));
     try {
-      // כאן שמתי את ה-ID של הגיליון שלך מהצילום מסך (אם הוא שונה, תחליף אותו)
       const sheetId = '1VU1qo4BZ4cFNbjsHHWqAcO7A5zZx1BiYwDYkbsiId_8';
       const data = await fetchSignals(sheetId);
       setState(prev => ({ ...prev, signals: data, loading: false }));
@@ -48,7 +47,7 @@ const App: React.FC = () => {
       <div className="fixed inset-0 pointer-events-none neural-gradient opacity-60" />
       <div className="fixed inset-0 pointer-events-none opacity-[0.03] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-50 bg-[length:100%_2px,3px_100%]" />
 
-      <main className="w-full max-w-2xl px-6 pb-32 relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <main className="w-full max-w-2xl px-6 pb-32 relative z-10">
         <Header />
 
         <div className="mt-8 space-y-4">
